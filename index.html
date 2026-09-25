@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dose d'irrigation — Maraîchage</title>
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F3F5EC; --paper-2:#EAEEDF; --ink:#1F2B22; --ink-soft:#4C5A4C;
+  --soil:#6B4A2F; --water:#2C6E8E; --leaf:#6E8C4A; --line:#D7DCC7;
+  --card:#FFFFFF;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#161A14; --paper-2:#1E241A; --ink:#EDEFE4; --ink-soft:#AEB8A6;
+    --soil:#C99B72; --water:#7FC0DC; --leaf:#A9C784; --line:#333B2C; --card:#1E241A;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#161A14; --paper-2:#1E241A; --ink:#EDEFE4; --ink-soft:#AEB8A6;
+  --soil:#C99B72; --water:#7FC0DC; --leaf:#A9C784; --line:#333B2C; --card:#1E241A;
+}
+*{box-sizing:border-box;}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:'Work Sans',sans-serif; font-size:15px; line-height:1.5;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+h1,h2,h3{font-family:'Zilla Slab',serif; margin:0; color:var(--ink);}
+header{padding:36px 20px 20px; max-width:1040px; margin:0 auto; border-bottom:1px solid var(--line);}
+header h1{font-size:clamp(24px,4vw,32px); font-weight:700;}
+header p{color:var(--ink-soft); margin-top:8px; max-width:64ch; font-size:14.5px;}
+header .src{font-size:12px; color:var(--leaf); margin-top:10px;}
+main{max-width:1040px; margin:0 auto; padding:24px 20px 60px; display:grid; grid-template-columns:1.15fr 0.85fr; gap:24px;}
+@media (max-width:760px){ main{grid-template-columns:1fr;} }
+section.card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:22px; margin-bottom:20px;}
+section.card h2{font-size:16px; font-weight:600; margin-bottom:4px;}
+section.card .sub{color:var(--ink-soft); font-size:13px; margin-bottom:16px;}
+.row{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;}
+.field{display:flex; flex-direction:column; gap:6px;}
+.field.full{grid-column:1/-1;}
+label{font-size:13px; color:var(--ink-soft); font-weight:500;}
+input, select{
+  font-family:'Work Sans',sans-serif; font-size:14.5px; color:var(--ink);
+  background:var(--paper); border:1px solid var(--line); border-radius:7px;
+  padding:9px 10px; width:100%;
+}
+input:focus, select:focus{outline:2px solid var(--water); outline-offset:1px;}
+.hint{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+.results{position:sticky; top:16px; align-self:start;}
+.dose-hero{background:linear-gradient(165deg,var(--water),#1d5773); color:#F3F5EC; border-radius:10px; padding:24px; margin-bottom:16px;}
+.dose-hero .label{font-size:13px; opacity:.85; margin-bottom:6px;}
+.dose-hero .num{font-family:'Zilla Slab',serif; font-size:40px; font-weight:700; line-height:1;}
+.dose-hero .num span{font-size:18px; font-weight:500;}
+.dose-hero .sub{font-size:12.5px; opacity:.85; margin-top:8px;}
+.breakdown{list-style:none; margin:0; padding:0;}
+.breakdown li{display:flex; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); font-size:13.5px;}
+.breakdown li:last-child{border-bottom:none;}
+.breakdown .k{color:var(--ink-soft);}
+.breakdown .v{font-weight:600; font-variant-numeric:tabular-nums; text-align:right;}
+.equiv{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px;}
+.equiv div{background:var(--paper-2); border-radius:7px; padding:10px 12px;}
+.equiv .n{font-family:'Zilla Slab',serif; font-size:19px; font-weight:700; color:var(--soil);}
+.equiv .l{font-size:11.5px; color:var(--ink-soft);}
+footer{max-width:1040px; margin:0 auto; padding:0 20px 40px; color:var(--ink-soft); font-size:12.5px;}
+.btn-save{
+  width:100%; padding:10px 14px; border-radius:7px; border:1px solid var(--leaf);
+  background:var(--leaf); color:#fff; font-family:'Work Sans',sans-serif; font-weight:600;
+  font-size:14px; cursor:pointer;
+}
+.btn-save:hover{opacity:.9;}
+.config-list{list-style:none; margin:0; padding:0;}
+.config-list li{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:11px 0; border-bottom:1px solid var(--line);
+}
+.config-list li:last-child{border-bottom:none;}
+.config-list .name{font-weight:600; font-size:13.5px;}
+.config-list .meta{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+.config-list .actions{display:flex; gap:6px; flex-shrink:0;}
+.config-list button{
+  font-size:12px; padding:5px 10px; border-radius:6px; cursor:pointer;
+  border:1px solid var(--line); background:var(--paper); color:var(--ink);
+}
+.config-list button.load{border-color:var(--water); color:var(--water);}
+.config-list button.load:hover{background:var(--water); color:#fff;}
+.config-list button.del{border-color:#B5544A; color:#B5544A;}
+.config-list button.del:hover{background:#B5544A; color:#fff;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Dose d'irrigation en maraîchage</h1>
+  <p>Calcule le temps d'irrigation quotidien nécessaire à partir de l'ETP, du stade de la culture et du système d'irrigation en place.</p>
+  <div class="src">Coefficients culturaux (Kc) repris du classeur fourni — base de données ARDEPI, 63 stades sur 19 cultures.</div>
+</header>
+
+<main>
+  <div>
+    <section class="card">
+      <h2>Besoin en eau de la culture</h2>
+      <div class="sub">ETM = ETP du jour × coefficient cultural Kc × coefficient abri</div>
+      <div class="row">
+        <div class="field full">
+          <label for="lieu">Commune (pour récupérer l'ETP automatiquement)</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="lieu" placeholder="ex. Lunel-Viel" style="flex:1;">
+            <button id="lieu-search" type="button" class="btn-save" style="width:auto; padding:9px 14px; flex-shrink:0;">Localiser</button>
+          </div>
+          <ul class="config-list" id="lieu-results" style="display:none; margin-top:8px;"></ul>
+          <div class="hint" id="lieu-hint">Aucune localisation enregistrée — saisir l'ETP manuellement ci-dessous.</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="etp">ETP du jour — mm <span id="etp-source" style="font-weight:400;"></span></label>
+          <div style="display:flex; gap:8px;">
+            <input type="number" id="etp" value="2.12" step="0.01" min="0" style="flex:1;">
+            <button id="etp-refresh" type="button" class="btn-save" style="width:auto; padding:9px 12px; flex-shrink:0;" title="Actualiser l'ETP du jour">↻</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="abri">Sous abri ou plein champ</label>
+          <select id="abri">
+            <option value="0.8">Sous-abri (× 0.8)</option>
+            <option value="1" selected>Plein champ (× 1.0)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="culture">Culture</label>
+          <select id="culture"></select>
+        </div>
+        <div class="field">
+          <label for="stade">Stade</label>
+          <select id="stade"></select>
+        </div>
+      </div>
+      <div class="hint" id="kc-hint">Coefficient cultural Kc sélectionné : —</div>
+    </section>
+
+    <section class="card">
+      <h2>Système d'irrigation</h2>
+      <div class="sub">Pluviométrie horaire = débit du distributeur ÷ (distance entre lignes × distance entre distributeurs)</div>
+      <div class="row">
+        <div class="field">
+          <label for="debit">Débit du distributeur — L/h</label>
+          <input type="number" id="debit" value="1.6" step="0.01" min="0.01">
+        </div>
+        <div class="field"></div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="dist-ligne">Distance entre 2 lignes d'irrigation — m</label>
+          <input type="number" id="dist-ligne" value="0.6" step="0.01" min="0.01">
+        </div>
+        <div class="field">
+          <label for="dist-distrib">Distance entre 2 distributeurs — m</label>
+          <input type="number" id="dist-distrib" value="0.3" step="0.01" min="0.01">
+        </div>
+      </div>
+      <div class="hint">Distributeurs = goutteurs (goutte-à-goutte) ou buses (aspersion/micro-aspersion).</div>
+
+      <div class="row" style="margin-top:4px;">
+        <div class="field full">
+          <label for="config-name">Nom de cette configuration</label>
+          <input type="text" id="config-name" placeholder="ex. Serre tomate — goutte-à-goutte">
+        </div>
+      </div>
+      <button id="save-config" type="button" class="btn-save">Enregistrer cette configuration</button>
+      <div class="hint" id="save-hint" style="margin-top:8px;"></div>
+    </section>
+
+    <section class="card">
+      <h2>Configurations enregistrées</h2>
+      <div class="sub">Sauvegardées dans ce navigateur, sur cet appareil</div>
+      <ul class="config-list" id="config-list"></ul>
+      <div class="hint" id="config-empty">Aucune configuration enregistrée pour l'instant.</div>
+    </section>
+  </div>
+
+  <div class="results">
+    <div class="dose-hero">
+      <div class="label">Temps d'irrigation nécessaire par jour</div>
+      <div class="num" id="temps-hero">—</div>
+      <div class="sub" id="temps-sub">pour couvrir le besoin maximum de la culture</div>
+    </div>
+
+    <section class="card">
+      <h2>Détail du calcul</h2>
+      <ul class="breakdown">
+        <li><span class="k">Besoin en eau max (ETM)</span><span class="v" id="etm">—</span></li>
+        <li><span class="k">Pluviométrie horaire du système</span><span class="v" id="pluvio">—</span></li>
+        <li><span class="k">Temps d'irrigation (h décimales)</span><span class="v" id="temps-h">—</span></li>
+        <li><span class="k">Temps d'irrigation (h:min:s)</span><span class="v" id="temps-hms">—</span></li>
+      </ul>
+      <div class="equiv">
+        <div><div class="n" id="eq-mm">—</div><div class="l">mm = L / m² / jour</div></div>
+        <div><div class="n" id="eq-m3ha">—</div><div class="l">m³ / ha / jour</div></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  Méthode ARDEPI (Kc par stade phénologique) reprise du classeur transmis. Ajuster l'ETP quotidiennement selon la météo locale ; le temps d'irrigation calculé correspond au besoin maximum théorique, à moduler selon la pluie tombée et la réserve du sol.
+</footer>
+
+<script>
+const KC_GROUPS = {"Ail": [["Ail fin de levée à formation du bulbe", 0.5], ["Ail formation du bulbe à grossissement maximum", 0.9], ["Ail grossissement maximum à 20j avant récolte", 0.6]], "Artichaut": [["Artichaut reprise", 0.6], ["Artichaut croissance", 0.9], ["Artichaut montaison du capitule à récolte", 1.1]], "Aubergine": [["Aubergine plantation à nouaison", 0.35], ["Aubergine grossissement des fruits", 0.7], ["Aubergine récolte", 0.9]], "Betterave": [["Betterave semis à 30j après semis", 0.5], ["Betterave 30j après semis à début tubérisation", 0.7], ["Betterave début tubérisation à récolte", 1]], "Carotte": [["Carotte levée à 5 semaines", 0.35], ["Carotte de 6 sem à stade crayon", 0.7], ["Carotte de stade crayon à récolte", 1]], "Celeri rave": [["Celeri rave reprise à boulaison", 0.8], ["Celeri rave grossissement", 1.1]], "Chou fleur": [["Chou fleur plantation à 1ère inflorescence", 0.5], ["Chou fleur 1ères inflorescence à début formation du chou", 1], ["Chou fleur début formation du chou à récolte", 1.3]], "Concombre SA": [["Concombre SA plantataion à 80cm", 0.6], ["Concombre SA 80cm à hauteur fil", 0.8], ["Concombre SA récolte", 1.1]], "Courgette": [["Courgette plantation à nouaison", 0.5], ["Courgette nouaison à début de récolte", 0.7], ["Courgette récolte", 0.9]], "Fraise": [["Fraise démarrage à floraison", 0.5], ["Fraise grossissement du fruit", 0.7], ["Fraise passage de fruit vert à fruit blanc", 0.9], ["Fraise début de récolte", 0.8], ["Fraise mi-récolte à la fin", 0.6]], "Haricot vert": [["Haricot vert levée à 2ème feuille trifoliée", 0.5], ["Haricot vert 2ème à 3ème feuille trifoliée", 0.6], ["Haricot vert 3ème feuille à boutons floraux", 0.8], ["Haricot vert floraison", 1], ["Haricot vert maturation des gousses", 1.2]], "Melon": [["Melon plantation à nouaison", 0.4], ["Melon nouaison à pré-récolte (-10j)", 0.8], ["Melon récolte", 0.6]], "Oignon": [["Oignon levée à 3 feuilles", 0.6], ["Oignon 3F à 5-6F", 0.9], ["Oignon 6F à mi-bulbaison", 1.1], ["Oignon mi-bulbaison à tombaison", 1]], "Poireau": [["Poireau de reprise à récolte", 0.7]], "Pois": [["Pois de levée à 5 feuilles", 0.5], ["Pois de 5 feuilles à 7 feuilles", 0.7], ["Pois de 7 feuilles à 9 feuilles", 0.9], ["Pois de 9 feuilles à début floraison", 1], ["Pois de début floraison à maturité", 1.2]], "Poivron": [["Poivron plantation à nouaison", 0.4], ["Poivron grossissement des fruits", 0.6], ["Poivron récolte", 0.8]], "Pomme de terre": [["Pomme de terre levée", 0.4], ["Pomme de terre début recouvrement du sol", 0.8], ["Pomme de terre floraison / initiation à mi-grossissement des tubercules", 1], ["Pomme de terre mi-grossissement à jaunissement du feuillage", 0.8], ["Pomme de terre maturation du feuillage", 0.4]], "Salades": [["Salades jusqu'à stade 18 feuilles", 0.5], ["Salades 18 feuilles à récolte", 1]], "Tomate": [["Tomate plantation à floraison 2ème bouquet", 0.4], ["Tomate floraison 2ème bouquet à 4ème bouquet", 0.6], ["Tomate floraison 4ème bouquet à récolte 2ème bouquet", 0.8], ["Tomate floraison récolte 3ème bouquet à fin de récolte", 0.9]]};
+
+function $(id){return document.getElementById(id);}
+function fmt(n, d=2){ return isFinite(n) ? n.toLocaleString('fr-FR',{minimumFractionDigits:d, maximumFractionDigits:d}) : '—'; }
+
+const cultureSel = $('culture'), stadeSel = $('stade');
+Object.keys(KC_GROUPS).forEach(crop => {
+  const o = document.createElement('option'); o.value = crop; o.textContent = crop;
+  cultureSel.appendChild(o);
+});
+cultureSel.value = 'Tomate';
+
+function fillStades(){
+  stadeSel.innerHTML = '';
+  KC_GROUPS[cultureSel.value].forEach(([stade, kc]) => {
+    const o = document.createElement('option'); o.value = kc; o.textContent = stade;
+    stadeSel.appendChild(o);
+  });
+  // default to the last stage, matching the example file (récolte)
+  stadeSel.selectedIndex = stadeSel.options.length - 1;
+}
+fillStades();
+
+function hms(hDec){
+  if(!isFinite(hDec) || hDec < 0) return '—';
+  const totalSec = Math.round(hDec * 3600);
+  const h = Math.floor(totalSec/3600);
+  const m = Math.floor((totalSec%3600)/60);
+  const s = totalSec%60;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+
+function calc(){
+  const etp = parseFloat($('etp').value) || 0;
+  const kc = parseFloat(stadeSel.value) || 0;
+  const abri = parseFloat($('abri').value) || 1;
+  const debit = parseFloat($('debit').value) || 0;
+  const dl = parseFloat($('dist-ligne').value) || 0.0001;
+  const dd = parseFloat($('dist-distrib').value) || 0.0001;
+
+  const etm = etp * kc * abri;               // mm/j = L/m²/j
+  const pluvio = debit / (dl * dd);           // mm/h
+  const tempsH = pluvio > 0 ? etm / pluvio : 0; // h
+
+  $('kc-hint').textContent = 'Coefficient cultural Kc sélectionné : ' + fmt(kc, 2);
+  $('etm').textContent = fmt(etm) + ' mm/j';
+  $('pluvio').textContent = fmt(pluvio) + ' mm/h';
+  $('temps-h').textContent = fmt(tempsH, 3) + ' h';
+  $('temps-hms').textContent = hms(tempsH);
+
+  $('temps-hero').textContent = hms(tempsH);
+  $('temps-sub').textContent = 'soit ' + fmt(tempsH,2) + ' h de fonctionnement, ETM = ' + fmt(etm) + ' mm/j';
+
+  $('eq-mm').textContent = fmt(etm);
+  $('eq-m3ha').textContent = fmt(etm*10, 1);
+}
+
+document.querySelectorAll('input, select').forEach(el => el.addEventListener('input', calc));
+cultureSel.addEventListener('change', () => { fillStades(); calc(); });
+
+calc();
+
+// --- Configurations sauvegardées (localStorage, propre à cet appareil) ---
+const STORAGE_KEY = 'irrigation-configs-v1';
+
+function loadConfigs(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){
+    console.error('Lecture des configurations impossible', e);
+    return [];
+  }
+}
+
+function saveConfigs(list){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    return true;
+  }catch(e){
+    console.error('Écriture des configurations impossible', e);
+    return false;
+  }
+}
+
+function renderConfigs(){
+  const list = loadConfigs();
+  const ul = $('config-list');
+  const empty = $('config-empty');
+  ul.innerHTML = '';
+  empty.style.display = list.length ? 'none' : 'block';
+
+  list.forEach((cfg, i) => {
+    const li = document.createElement('li');
+    const info = document.createElement('div');
+    info.innerHTML = '<div class="name"></div><div class="meta"></div>';
+    info.querySelector('.name').textContent = cfg.name;
+    info.querySelector('.meta').textContent =
+      fmt(cfg.debit,2) + ' L/h · lignes ' + fmt(cfg.distLigne,2) + ' m · distributeurs ' + fmt(cfg.distDistrib,2) + ' m';
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'load'; loadBtn.type = 'button'; loadBtn.textContent = 'Charger';
+    loadBtn.addEventListener('click', () => {
+      $('debit').value = cfg.debit;
+      $('dist-ligne').value = cfg.distLigne;
+      $('dist-distrib').value = cfg.distDistrib;
+      $('config-name').value = cfg.name;
+      calc();
+    });
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del'; delBtn.type = 'button'; delBtn.textContent = 'Supprimer';
+    delBtn.addEventListener('click', () => {
+      const cur = loadConfigs();
+      cur.splice(i, 1);
+      saveConfigs(cur);
+      renderConfigs();
+    });
+
+    actions.appendChild(loadBtn);
+    actions.appendChild(delBtn);
+    li.appendChild(info);
+    li.appendChild(actions);
+    ul.appendChild(li);
+  });
+}
+
+$('save-config').addEventListener('click', () => {
+  const name = $('config-name').value.trim();
+  const hint = $('save-hint');
+  if(!name){
+    hint.textContent = 'Indiquez un nom pour cette configuration avant d\u2019enregistrer.';
+    hint.style.color = '#B5544A';
+    return;
+  }
+  const cfg = {
+    name,
+    debit: parseFloat($('debit').value) || 0,
+    distLigne: parseFloat($('dist-ligne').value) || 0,
+    distDistrib: parseFloat($('dist-distrib').value) || 0
+  };
+  const list = loadConfigs();
+  const existingIdx = list.findIndex(c => c.name === name);
+  if(existingIdx >= 0){ list[existingIdx] = cfg; } else { list.push(cfg); }
+
+  if(saveConfigs(list)){
+    hint.textContent = 'Configuration « ' + name + ' » enregistrée.';
+    hint.style.color = 'var(--leaf)';
+    renderConfigs();
+  }else{
+    hint.textContent = 'Impossible d\u2019enregistrer (stockage local indisponible sur cet appareil).';
+    hint.style.color = '#B5544A';
+  }
+});
+
+renderConfigs();
+
+// --- Localisation & ETP automatique (Open-Meteo — gratuit, sans clé API) ---
+const LOC_KEY = 'irrigation-location-v1';
+
+function loadLocation(){
+  try{
+    const raw = localStorage.getItem(LOC_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function saveLocation(loc){
+  try{ localStorage.setItem(LOC_KEY, JSON.stringify(loc)); return true; }
+  catch(e){ return false; }
+}
+function setEtpSource(text){ $('etp-source').textContent = text ? '· ' + text : ''; }
+
+async function searchLieu(){
+  const q = $('lieu').value.trim();
+  const resultsEl = $('lieu-results');
+  const hint = $('lieu-hint');
+  resultsEl.style.display = 'none';
+  resultsEl.innerHTML = '';
+  if(!q){ return; }
+  hint.textContent = 'Recherche en cours…';
+  hint.style.color = 'var(--ink-soft)';
+  try{
+    const url = 'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(q) + '&count=5&language=fr&format=json';
+    const res = await fetch(url);
+    const data = await res.json();
+    const list = data.results || [];
+    if(!list.length){
+      hint.textContent = 'Aucun lieu trouvé pour « ' + q + ' ».';
+      hint.style.color = '#B5544A';
+      return;
+    }
+    if(list.length === 1){ chooseLieu(list[0]); return; }
+    hint.textContent = 'Plusieurs résultats — choisir le bon :';
+    hint.style.color = 'var(--ink-soft)';
+    resultsEl.style.display = 'block';
+    list.forEach(r => {
+      const li = document.createElement('li');
+      const info = document.createElement('div');
+      const label = [r.name, r.admin2, r.admin1, r.country].filter(Boolean).join(', ');
+      info.innerHTML = '<div class="name"></div>';
+      info.querySelector('.name').textContent = label;
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      const btn = document.createElement('button');
+      btn.className = 'load'; btn.type = 'button'; btn.textContent = 'Choisir';
+      btn.addEventListener('click', () => chooseLieu(r));
+      actions.appendChild(btn);
+      li.appendChild(info); li.appendChild(actions);
+      resultsEl.appendChild(li);
+    });
+  }catch(e){
+    hint.textContent = 'Recherche impossible : ' + (e && e.message ? e.message : String(e));
+    hint.style.color = '#B5544A';
+  }
+}
+
+function chooseLieu(r){
+  const label = [r.name, r.admin1, r.country].filter(Boolean).join(', ');
+  saveLocation({ name: label, lat: r.latitude, lon: r.longitude });
+  $('lieu').value = label;
+  $('lieu-results').style.display = 'none';
+  $('lieu-results').innerHTML = '';
+  $('lieu-hint').textContent = 'Localisation enregistrée : ' + label;
+  $('lieu-hint').style.color = 'var(--leaf)';
+  fetchEtpAuto();
+}
+
+async function fetchEtpAuto(){
+  const loc = loadLocation();
+  if(!loc) return;
+  setEtpSource('récupération en cours…');
+  try{
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + loc.lat + '&longitude=' + loc.lon +
+      '&daily=et0_fao_evapotranspiration&timezone=auto&forecast_days=1';
+    const res = await fetch(url);
+    const data = await res.json();
+    const val = data && data.daily && data.daily.et0_fao_evapotranspiration ? data.daily.et0_fao_evapotranspiration[0] : null;
+    if(val == null || !isFinite(val)){
+      setEtpSource('indisponible — saisie manuelle');
+      return;
+    }
+    $('etp').value = Math.round(val * 100) / 100;
+    calc();
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2,'0'), mm = String(now.getMinutes()).padStart(2,'0');
+    setEtpSource('ETo Open-Meteo · ' + loc.name + ' · actualisé à ' + hh + ':' + mm);
+  }catch(e){
+    setEtpSource('erreur : ' + (e && e.message ? e.message : String(e)));
+  }
+}
+
+$('lieu-search').addEventListener('click', searchLieu);
+$('lieu').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); searchLieu(); } });
+$('etp-refresh').addEventListener('click', fetchEtpAuto);
+
+(function initLocation(){
+  const loc = loadLocation();
+  if(loc){
+    $('lieu').value = loc.name;
+    $('lieu-hint').textContent = 'Localisation enregistrée : ' + loc.name;
+    $('lieu-hint').style.color = 'var(--leaf)';
+    fetchEtpAuto();
+  }
+})();
+</script>
+</body>
+</html>
