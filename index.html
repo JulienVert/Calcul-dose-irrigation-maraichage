@@ -270,6 +270,13 @@ function hms(hDec){
   return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
 }
 
+let timerRemainingSec = 0;
+let timerInterval = null;
+let timerRunning = false;
+let timerDurationTouched = false;
+let alarmInterval = null;
+let alarmCtx = null;
+
 function calc(){
   const etp = parseFloat($('etp').value) || 0;
   const kc = parseFloat(stadeSel.value) || 0;
@@ -507,13 +514,6 @@ $('etp-refresh').addEventListener('click', fetchEtpAuto);
 })();
 
 // --- Minuteur d'irrigation ---
-let timerRemainingSec = 0;
-let timerInterval = null;
-let timerRunning = false;
-let timerDurationTouched = false;
-let alarmInterval = null;
-let alarmCtx = null;
-
 function parseHMS(str){
   const parts = (str || '').split(':').map(s => parseInt(s, 10));
   if(parts.length !== 3 || parts.some(n => isNaN(n) || n < 0)) return null;
