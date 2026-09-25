@@ -88,6 +88,14 @@ footer{max-width:1040px; margin:0 auto; padding:0 20px 40px; color:var(--ink-sof
 .config-list button.load:hover{background:var(--water); color:#fff;}
 .config-list button.del{border-color:#B5544A; color:#B5544A;}
 .config-list button.del:hover{background:#B5544A; color:#fff;}
+.timer-display{font-family:'Zilla Slab',serif; font-size:44px; font-weight:700; text-align:center; padding:10px 0 4px; color:var(--water); font-variant-numeric:tabular-nums;}
+.timer-display.alarm{color:#B5544A; animation:timer-pulse 1s infinite;}
+@keyframes timer-pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.timer-btns{display:flex; gap:8px; margin-top:6px;}
+.timer-btns button{flex:1;}
+.btn-secondary{background:var(--paper); color:var(--ink); border-color:var(--line);}
+.btn-secondary:hover{opacity:.85;}
+.btn-alarm{background:#B5544A; border-color:#B5544A;}
 </style>
 </head>
 <body>
@@ -203,6 +211,25 @@ footer{max-width:1040px; margin:0 auto; padding:0 20px 40px; color:var(--ink-sof
         <div><div class="n" id="eq-m3ha">—</div><div class="l">m³ / ha / jour</div></div>
       </div>
     </section>
+
+    <section class="card" id="timer-card">
+      <h2>Minuteur d'irrigation</h2>
+      <div class="sub">Se cale sur le temps calculé ci-dessus — modifiable avant de démarrer</div>
+      <div class="row" style="margin-bottom:8px;">
+        <div class="field full">
+          <label for="timer-duration">Durée (h:min:s)</label>
+          <input type="text" id="timer-duration" value="00:00:00" placeholder="00:00:00">
+        </div>
+      </div>
+      <div class="timer-display" id="timer-display">00:00:00</div>
+      <div class="timer-btns">
+        <button id="timer-start" type="button" class="btn-save">Démarrer</button>
+        <button id="timer-pause" type="button" class="btn-save btn-secondary" style="display:none;">Pause</button>
+        <button id="timer-reset" type="button" class="btn-save btn-secondary">Réinitialiser</button>
+      </div>
+      <button id="timer-stop-alarm" type="button" class="btn-save btn-alarm" style="display:none; width:100%; margin-top:8px;">Arrêter l'alarme</button>
+      <div class="hint" id="timer-hint" style="margin-top:8px;"></div>
+    </section>
   </div>
 </main>
 
@@ -266,6 +293,8 @@ function calc(){
 
   $('eq-mm').textContent = fmt(etm);
   $('eq-m3ha').textContent = fmt(etm*10, 1);
+
+  if(typeof syncTimerFromCalc === 'function') syncTimerFromCalc();
 }
 
 document.querySelectorAll('input, select').forEach(el => el.addEventListener('input', calc));
@@ -476,6 +505,135 @@ $('etp-refresh').addEventListener('click', fetchEtpAuto);
     fetchEtpAuto();
   }
 })();
+
+// --- Minuteur d'irrigation ---
+let timerRemainingSec = 0;
+let timerInterval = null;
+let timerRunning = false;
+let timerDurationTouched = false;
+let alarmInterval = null;
+let alarmCtx = null;
+
+function parseHMS(str){
+  const parts = (str || '').split(':').map(s => parseInt(s, 10));
+  if(parts.length !== 3 || parts.some(n => isNaN(n) || n < 0)) return null;
+  const [h, m, s] = parts;
+  return h*3600 + m*60 + s;
+}
+function formatHMS(totalSec){
+  totalSec = Math.max(0, Math.round(totalSec));
+  const h = Math.floor(totalSec/3600);
+  const m = Math.floor((totalSec%3600)/60);
+  const s = totalSec%60;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+function updateTimerDisplay(){ $('timer-display').textContent = formatHMS(timerRemainingSec); }
+
+function syncTimerFromCalc(){
+  if(!timerRunning && !timerDurationTouched){
+    const t = $('temps-hms').textContent;
+    $('timer-duration').value = (t && t !== '—') ? t : '00:00:00';
+  }
+}
+
+$('timer-duration').addEventListener('input', () => { timerDurationTouched = true; });
+
+function beep(){
+  try{
+    if(!alarmCtx) alarmCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = alarmCtx.createOscillator();
+    const gain = alarmCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, alarmCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.35, alarmCtx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, alarmCtx.currentTime + 0.5);
+    osc.connect(gain); gain.connect(alarmCtx.destination);
+    osc.start(); osc.stop(alarmCtx.currentTime + 0.5);
+  }catch(e){}
+}
+
+function triggerAlarm(){
+  $('timer-display').classList.add('alarm');
+  $('timer-hint').textContent = 'Irrigation terminée !';
+  $('timer-hint').style.color = 'var(--water)';
+  $('timer-stop-alarm').style.display = 'block';
+  if(navigator.vibrate) navigator.vibrate([400,200,400,200,400]);
+  beep();
+  alarmInterval = setInterval(beep, 1200);
+  if(window.Notification){
+    if(Notification.permission === 'granted'){
+      try{ new Notification('Irrigation terminée', { body: 'Le temps d\u2019irrigation est écoulé.' }); }catch(e){}
+    }else if(Notification.permission !== 'denied'){
+      Notification.requestPermission();
+    }
+  }
+}
+
+function stopAlarm(){
+  if(alarmInterval){ clearInterval(alarmInterval); alarmInterval = null; }
+  $('timer-display').classList.remove('alarm');
+  $('timer-stop-alarm').style.display = 'none';
+}
+
+$('timer-start').addEventListener('click', () => {
+  stopAlarm();
+  if(timerRunning) return;
+  if(timerRemainingSec <= 0){
+    const parsed = parseHMS($('timer-duration').value.trim());
+    if(parsed === null || parsed <= 0){
+      $('timer-hint').textContent = 'Indiquer une durée valide (hh:mm:ss).';
+      $('timer-hint').style.color = '#B5544A';
+      return;
+    }
+    timerRemainingSec = parsed;
+  }
+  timerRunning = true;
+  $('timer-hint').textContent = '';
+  $('timer-start').style.display = 'none';
+  $('timer-pause').style.display = 'inline-block';
+  updateTimerDisplay();
+  timerInterval = setInterval(() => {
+    timerRemainingSec--;
+    updateTimerDisplay();
+    if(timerRemainingSec <= 0){
+      clearInterval(timerInterval);
+      timerInterval = null;
+      timerRunning = false;
+      $('timer-start').style.display = 'inline-block';
+      $('timer-start').textContent = 'Démarrer';
+      $('timer-pause').style.display = 'none';
+      triggerAlarm();
+    }
+  }, 1000);
+});
+
+$('timer-pause').addEventListener('click', () => {
+  if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+  timerRunning = false;
+  $('timer-start').style.display = 'inline-block';
+  $('timer-start').textContent = 'Reprendre';
+  $('timer-pause').style.display = 'none';
+});
+
+$('timer-reset').addEventListener('click', () => {
+  if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+  timerRunning = false;
+  timerRemainingSec = 0;
+  timerDurationTouched = false;
+  $('timer-start').textContent = 'Démarrer';
+  $('timer-start').style.display = 'inline-block';
+  $('timer-pause').style.display = 'none';
+  $('timer-hint').textContent = '';
+  stopAlarm();
+  syncTimerFromCalc();
+  updateTimerDisplay();
+});
+
+$('timer-stop-alarm').addEventListener('click', stopAlarm);
+
+syncTimerFromCalc();
+updateTimerDisplay();
 </script>
 </body>
 </html>
